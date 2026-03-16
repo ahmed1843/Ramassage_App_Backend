@@ -1,0 +1,3 @@
+### Simuler l'arrivée du camion dans la Zone 1 (Médina)
+POST http://localhost:8000/api/zones/1/alert
+Accept: application/json

@@ -1,0 +1,3 @@
+GET http://localhost:8000/api/my-reports
+Authorization: Bearer 2|OgtBwTv3uelsEypJtFVH1NUOSmbxiFVa1uvTYCqL3d11ab6f
+Accept: application/json

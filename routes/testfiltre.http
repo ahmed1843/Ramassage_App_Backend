@@ -1,0 +1,5 @@
+### Récupérer TOUS les horaires
+GET http://localhost:8000/api/schedules
+
+### Récupérer uniquement les horaires de la Zone 1 (Médina)
+GET http://localhost:8000/api/schedules?zone_id=1

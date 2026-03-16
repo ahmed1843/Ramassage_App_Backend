@@ -34,6 +34,17 @@ class ReportController extends Controller
 
     return response()->json(['message' => 'Signalement envoyé !', 'data' => $report], 201);
 }
+public function myReports(Request $request)
+{
+    // On récupère uniquement les rapports qui appartiennent à l'utilisateur connecté
+    $reports = Report::where('user_id', $request->user()->id)
+                     ->with('zone') // On inclut les infos de la zone pour l'affichage
+                     ->orderBy('created_at', 'desc')
+                     ->get();
+
+    return response()->json($reports);
+}
+
 
     }
 

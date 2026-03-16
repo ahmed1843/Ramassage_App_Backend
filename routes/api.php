@@ -7,41 +7,57 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\StatsController;
+use App\Http\Controllers\NotificationController;
 
-Route::get('/stats/noise', [StatsController::class, 'noiseStats']);
+/*
 
+|--------------------------------------------------------------------------
+| ROUTES PUBLIQUES (Accessibles par tous)
+|--------------------------------------------------------------------------
+*/
 
-// --- ROUTES PUBLIQUES (Accessibles sans Token pour tes tests) ---
+// Authentification
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
+// Consultation (Pour les citoyens et le binôme)
 Route::get('/zones', [ZoneController::class, 'index']);
-Route::post('/zones', [ZoneController::class, 'store']);
-
-Route::get('/reports', [ReportController::class, 'index']);
-Route::post('/reports', [ReportController::class, 'store']); // Déplacé ici pour tester facilement
-
 Route::get('/schedules', [ScheduleController::class, 'index']);
-Route::post('/schedules', [ScheduleController::class, 'store']);
+Route::get('/reports', [ReportController::class, 'index']);
+Route::get('/notifications', [NotificationController::class, 'index']);
+Route::get('/stats/noise', [StatsController::class, 'noiseStats']);
 
+// Actions de test (Accessibles en public pour faciliter tes tests Thunder Client/Postman)
+Route::post('/reports', [ReportController::class, 'store']);
+Route::post('/zones/{id}/alert', [NotificationController::class, 'sendZoneAlert']); // Le remplaçant du klaxon
+Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 
-// --- ROUTES PROTÉGÉES (Nécessitent un Token Sanctum) ---
+/*
+
+|--------------------------------------------------------------------------
+| ROUTES PROTÉGÉES (Nécessitent un Token Sanctum)
+|--------------------------------------------------------------------------
+*/
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/user', function (Request $request) {
-        return $request->user();
-        // Routes accessibles uniquement par l'ADMIN connecté
-Route::middleware(['auth:sanctum', 'admin'])->group(function () {
-    Route::post('/zones', [ZoneController::class, 'store']);
-    Route::post('/schedules', [ScheduleController::class, 'store']);
-    
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/my-reports', [ReportController::class, 'myReports']);
+    // ... tes autres routes protégées (logout, user, etc.)
 });
 
-// Routes accessibles par tout le monde (Citoyens + Admin)
-Route::get('/zones', [ZoneController::class, 'index']);
-Route::get('/schedules', [ScheduleController::class, 'index']);
-Route::post('/reports', [ReportController::class, 'store']); // Un citoyen peut signaler
-
-    });
     
+    // Infos de l'utilisateur connecté
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+
+    Route::post('/logout', [AuthController::class, 'logout']);
+
+    /*
+    |--- ROUTES RÉSERVÉES À L'ADMIN ---
+    */
+    Route::middleware(['admin'])->group(function () {
+        Route::post('/zones', [ZoneController::class, 'store']);
+        Route::post('/schedules', [ScheduleController::class, 'store']);
+        Route::put('/reports/{id}', [ReportController::class, 'update']); // Pour résoudre un rapport
+    });
 });
