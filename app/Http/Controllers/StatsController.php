@@ -9,14 +9,15 @@ class StatsController extends Controller
 {
     public function noiseStats()
     {
-        // On récupère les zones avec la moyenne des niveaux de bruit de leurs rapports
-        $stats = Zone::withAvg('reports', 'noise_level')
-                     ->withCount('reports')
-                     ->get();
+      
+    $stats = Zone::withAvg('reports', 'noise_level')
+                 ->withCount('reports')
+                 ->orderBy('reports_avg_noise_level', 'desc') // Les plus bruyantes en haut
+                 ->get();
 
-        return response()->json([
-            'message' => 'Statistiques de nuisances récupérées',
-            'data' => $stats
+    return response()->json([
+        'message' => 'Statistiques de nuisances récupérées',
+        'data' => $stats
         ]);
     }
 }

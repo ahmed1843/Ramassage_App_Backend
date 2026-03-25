@@ -9,6 +9,16 @@ use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
+   public function markAllAsRead(Request $request)
+{
+    // On récupère toutes les notifications de l'utilisateur connecté et on les met à "true"
+    $request->user()->notifications()->update(['is_read' => true]);
+
+    return response()->json(['message' => 'Toutes les notifications ont été lues']);
+}
+
+
+
     // Cette méthode remplace le klaxon par un message numérique
     public function sendZoneAlert(Request $request, $zoneId)
     {
@@ -43,6 +53,7 @@ class NotificationController extends Controller
         return response()->json($notifications);
     }
 
+
     // --- NOUVELLE MÉTHODE AJOUTÉE ICI ---
     public function markAsRead($id)
     {
@@ -54,5 +65,8 @@ class NotificationController extends Controller
         }
 
         return response()->json(['message' => 'Introuvable'], 404);
+
     }
+
 }
+

@@ -52,5 +52,27 @@ class AuthController extends Controller
     public function logout(Request $request) {
         $request->user()->tokens()->delete();
         return response()->json(['message' => 'Déconnecté']);
+
     }
+// MISE À JOUR DU PROFIL (Update)
+public function updateProfile(Request $request) {
+    $user = $request->user(); // On récupère l'utilisateur connecté via le token
+
+    $fields = $request->validate([
+        'name' => 'sometimes|required|string|max:255',
+        'email' => 'sometimes|required|string|email|unique:users,email,' . $user->id,
+        // On peut aussi ajouter le quartier si tu as la colonne en BDD
+        'quartier' => 'nullable|string' 
+    ]);
+
+    // On met à jour les données
+    $user->update($fields);
+
+    return response()->json([
+        'message' => 'Profil mis à jour avec succès',
+        'user' => $user
+    ], 200);
 }
+
+}
+

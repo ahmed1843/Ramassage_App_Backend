@@ -1,0 +1,20 @@
+### Récupérer tous les rapports (Route Publique)
+GET http://localhost:8000/api/zones
+Accept: application/json
+
+### Tester le nouveau format de ReportResource
+# (Assure-toi que cette route est accessible ou utilise un Token)
+GET http://localhost:8000/api/reports
+Accept: application/json
+
+### Créer un nouveau rapport (nécessite d'être connecté)
+POST http://localhost:8000/api/reports
+Content-Type: application/json
+Authorization: Bearer TON_TOKEN_ICI
+
+{
+    "zone_id": 1,
+    "title": "Alerte Bruit Rue Haute",
+    "description": "Musique trop forte après 22h",
+    "noise_level": 4
+}
