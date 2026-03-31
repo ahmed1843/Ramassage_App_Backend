@@ -1,0 +1,148 @@
+/* --- Variables de couleurs --- */
+:root {
+  --primary-color: #27ae60;
+  --secondary-color: #2c3e50;
+  --bg-color: #f4f7f6;
+  --white: #ffffff;
+  --error: #e74c3c;
+}
+
+/* --- Base --- */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-color);
+  color: var(--secondary-color);
+  /* ⚠️ Supprime display:flex ici */
+  min-height: 100vh;
+}
+
+/* --- Header --- */
+header {
+  background-color: var(--primary-color);
+  color: var(--white);
+  padding: 1.5rem;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+/* --- Main Content --- */
+main {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 120px; /* espace pour ne pas cacher le contenu */
+}
+
+
+/* --- Cards (Sections) --- */
+section {
+  background: var(--white);
+  padding: 20px;
+  border-radius: 15px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  text-align: center;
+}
+
+.next-pickup h2 {
+  color: var(--primary-color);
+  margin-top: 0;
+}
+
+#pickup-time {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin: 15px 0;
+}
+
+/* --- Boutons --- */
+button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.3s;
+  width: 100%;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+.calendar-btn {
+  background-color: var(--secondary-color);
+}
+
+/* --- LE MENU FIXE PARFAIT --- */
+footer.mobile-nav {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: 85px !important; /* Hauteur identique accueil */
+    background-color: white !important;
+    border-top: 1px solid #eeeeee !important;
+    box-shadow: 0 -5px 25px rgba(0,0,0,0.1) !important;
+    z-index: 999999 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important; /* Centre le nav */
+}
+
+footer.mobile-nav nav {
+    width: 100% !important;
+}
+
+.nav-list {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-around !important; /* Équilibre parfait des icônes */
+    align-items: center !important;
+    width: 100% !important;
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.nav-item {
+    flex: 1 !important; /* Force chaque bouton à prendre la même largeur */
+    text-align: center !important;
+}
+
+.nav-item a {
+    text-decoration: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 4px !important; /* Espace vertical entre icône et texte */
+}
+
+/* Tailles exactes Accueil */
+.nav-item a span:first-child { 
+    font-size: 26px !important; 
+}
+
+.nav-item a span:last-child {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: #7f8c8d;
+}
+
+/* Couleur active */
+.nav-item a.active span:last-child {
+    color: #27ae60 !important;
+}

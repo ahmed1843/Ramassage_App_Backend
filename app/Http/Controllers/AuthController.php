@@ -5,40 +5,53 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
-    // INSCRIPTION (Register)
+    // ✅ INSCRIPTION
     public function register(Request $request) {
-        $fields = $request->validate([
-            'name' => 'required|string',
-            'email' => 'required|string|unique:users,email',
-            'password' => 'required|string|confirmed'
+        // 1. On valide les données
+        $validator = Validator::make($request->all(), [
+            'prenom'    => 'required|string|max:255',
+            'nom'       => 'required|string|max:255',
+            'telephone' => 'required|string',
+            'email'     => 'required|string|email|unique:users,email',
+            'password'  => 'required|string|min:8'
         ]);
 
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        // 2. On crée l'utilisateur
         $user = User::create([
-            'name' => $fields['name'],
-            'email' => $fields['email'],
-            'password' => bcrypt($fields['password']),
-            'role' => 'citizen'
+            'name'      => $request->prenom . ' ' . $request->nom,
+            'email'     => $request->email,
+            'telephone' => $request->telephone,
+            'password'  => Hash::make($request->password),
+            'role'      => 'citizen'
         ]);
 
+        // 3. On génère le token
         $token = $user->createToken('myapptoken')->plainTextToken;
 
-        return response()->json(['user' => $user, 'token' => $token], 201);
+        return response()->json([
+            'message' => 'Utilisateur créé avec succès !',
+            'user'    => $user, 
+            'token'   => $token
+        ], 201);
     }
 
-    // CONNEXION (Login)
+    // ✅ CONNEXION
     public function login(Request $request) {
         $fields = $request->validate([
-            'email' => 'required|string',
+            'email'    => 'required|string|email',
             'password' => 'required|string'
         ]);
 
-        // Vérifier l'email
         $user = User::where('email', $fields['email'])->first();
 
-        // Vérifier le mot de passe
         if(!$user || !Hash::check($fields['password'], $user->password)) {
             return response()->json(['message' => 'Identifiants incorrects'], 401);
         }
@@ -48,31 +61,27 @@ class AuthController extends Controller
         return response()->json(['user' => $user, 'token' => $token], 200);
     }
 
-    // DÉCONNEXION (Logout)
+    // ✅ MISE À JOUR DU PROFIL
+    public function updateProfile(Request $request) {
+        $user = $request->user();
+
+        $fields = $request->validate([
+            'name'     => 'sometimes|required|string|max:255',
+            'email'    => 'sometimes|required|string|email|unique:users,email,' . $user->id,
+            'quartier' => 'nullable|string' 
+        ]);
+
+        $user->update($fields);
+
+        return response()->json([
+            'message' => 'Profil mis à jour avec succès',
+            'user'    => $user
+        ], 200);
+    }
+
+    // ✅ DÉCONNEXION
     public function logout(Request $request) {
         $request->user()->tokens()->delete();
         return response()->json(['message' => 'Déconnecté']);
-
     }
-// MISE À JOUR DU PROFIL (Update)
-public function updateProfile(Request $request) {
-    $user = $request->user(); // On récupère l'utilisateur connecté via le token
-
-    $fields = $request->validate([
-        'name' => 'sometimes|required|string|max:255',
-        'email' => 'sometimes|required|string|email|unique:users,email,' . $user->id,
-        // On peut aussi ajouter le quartier si tu as la colonne en BDD
-        'quartier' => 'nullable|string' 
-    ]);
-
-    // On met à jour les données
-    $user->update($fields);
-
-    return response()->json([
-        'message' => 'Profil mis à jour avec succès',
-        'user' => $user
-    ], 200);
 }
-
-}
-

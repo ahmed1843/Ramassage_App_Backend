@@ -9,6 +9,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\NotificationController;
 
+
 /*
 
 |--------------------------------------------------------------------------
@@ -46,6 +47,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // On protège l'alerte zone
     Route::post('/zones/{id}/alert', [NotificationController::class, 'sendZoneAlert']);
 
+
     // --- Administration ---
     Route::middleware(['admin'])->group(function () {
         Route::post('/zones', [ZoneController::class, 'store']);
@@ -53,3 +55,4 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/reports/{id}', [ReportController::class, 'update']);
     });
 });
+

@@ -9,16 +9,17 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
-    {
-     Schema::create('notifications', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('user_id')->constrained()->onDelete('cascade');
-    $table->text('message');
-    $table->boolean('is_read')->default(false);
-    $table->timestamps();
-});
-    }
+public function up(): void
+{
+    Schema::create('notifications', function (Blueprint $table) {
+        $table->id();
+        $table->foreignId('user_id')->constrained()->onDelete('cascade');
+        $table->string('title'); // 👈 AJOUTE CETTE LIGNE
+        $table->text('message');
+        $table->boolean('is_read')->default(false);
+        $table->timestamps();
+    });
+}
 
     /**
      * Reverse the migrations.

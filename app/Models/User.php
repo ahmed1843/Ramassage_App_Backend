@@ -16,12 +16,14 @@ class User extends Authenticatable
     /**
      * Les attributs qui peuvent être remplis massivement.
      */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'role', // On ajoute le rôle ici
-    ];
+protected $fillable = [
+    'name',
+    'email',
+    'password',
+    'telephone', // ✅ AJOUTE CETTE LIGNE ICI
+    'role',      // Ajoute aussi 'role' si tu l'utilises dans ton contrôleur
+];
+
 
     /**
      * Les attributs qui doivent être cachés pour la sérialisation.
