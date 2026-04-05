@@ -25,13 +25,14 @@ class AuthController extends Controller
         }
 
         // 2. On crée l'utilisateur
-        $user = User::create([
-            'name'      => $request->prenom . ' ' . $request->nom,
-            'email'     => $request->email,
-            'telephone' => $request->telephone,
-            'password'  => Hash::make($request->password),
-            'role'      => 'citizen'
-        ]);
+  // 2. On crée l'utilisateur
+$user = User::create([
+    'name'      => $request->prenom . ' ' . $request->nom,
+    'email'     => $request->email,
+    'telephone' => $request->telephone,
+    'password'  => Hash::make($request->password),
+    // 'role'   => 'citizen'  <-- ❌ SUPPRIME CETTE LIGNE si tu n'as pas de colonne 'role'
+]);
 
         // 3. On génère le token
         $token = $user->createToken('myapptoken')->plainTextToken;
@@ -43,23 +44,46 @@ class AuthController extends Controller
         ], 201);
     }
 
-    // ✅ CONNEXION
-    public function login(Request $request) {
-        $fields = $request->validate([
-            'email'    => 'required|string|email',
-            'password' => 'required|string'
-        ]);
+public function login(Request $request) {
+    $fields = $request->validate([
+        'email'    => 'required|string|email',
+        'password' => 'required|string'
+    ]);
 
-        $user = User::where('email', $fields['email'])->first();
+    $user = User::where('email', $fields['email'])->first();
 
-        if(!$user || !Hash::check($fields['password'], $user->password)) {
+    if(!$user || !Hash::check($fields['password'], $user->password)) {
+        // Si c'est une requête API (mobile), on rend du JSON
+        if ($request->wantsJson()) {
             return response()->json(['message' => 'Identifiants incorrects'], 401);
         }
-
-        $token = $user->createToken('myapptoken')->plainTextToken;
-
-        return response()->json(['user' => $user, 'token' => $token], 200);
+        // Si c'est le formulaire web, on revient en arrière avec une erreur
+        return back()->withErrors(['email' => 'Identifiants incorrects']);
     }
+
+    // On connecte l'utilisateur pour la session Web
+    auth()->login($user);
+
+    // 🛡️ On génère le token pour l'éventuelle partie mobile/API
+    $token = $user->createToken('myapptoken')->plainTextToken;
+
+    // --- LOGIQUE DE REDIRECTION ICI ---
+    if (!$request->wantsJson()) {
+        if ($user->role === 'admin') {
+            return redirect('/admin'); // Envoie l'admin vers le tableau vert
+        }
+        return redirect('/profil'); // Envoie l'utilisateur normal vers son profil
+    }
+
+    // Réponse JSON pour l'application mobile
+    return response()->json([
+        'user'  => $user, 
+        'token' => $token,
+        'role'  => $user->role
+    ], 200);
+}
+
+
 
     // ✅ MISE À JOUR DU PROFIL
     public function updateProfile(Request $request) {

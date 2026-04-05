@@ -22,23 +22,30 @@ class ScheduleController extends Controller
 
     return response()->json($schedules);
 }
-
-
-    // Ajouter un nouvel horaire de passage
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'zone_id' => 'required|exists:zones,id',
-            'collection_day' => 'required|string', // ex: Lundi
-            'start_time' => 'required', // ex: 08:00
-            'end_time' => 'required',   // ex: 10:00
-        ]);
-
-        $schedule = Schedule::create($validated);
-
-        return response()->json([
-            'message' => 'Horaire ajouté avec succès',
-            'data' => $schedule
-        ], 201);
-    }
+public function getByZone($zoneId)
+{
+    $schedule = \App\Models\Schedule::where('zone_id', $zoneId)->first();
+    return response()->json($schedule);
 }
+
+
+public function store(Request $request)
+{
+    $validated = $request->validate([
+        'zone_id' => 'required|exists:zones,id',
+        'day_of_week' => 'required|string', // ✅ Harmonisé avec ta DB
+        'pickup_time' => 'required',        // ✅ Harmonisé avec ta DB
+        'truck_name'  => 'nullable|string'
+    ]);
+
+    $schedule = Schedule::create($validated);
+
+    return response()->json([
+        'message' => 'Horaire ajouté avec succès',
+        'data' => $schedule
+    ], 201);
+}
+
+    }
+
+

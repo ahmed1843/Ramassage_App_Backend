@@ -10,12 +10,12 @@ class ZoneController extends Controller
     /**
      * Affiche toutes les zones avec leurs horaires (pour le Frontend).
      */
-    public function index()
-    {
-        // On récupère les zones avec leurs horaires liés
-        $zones = Zone::with('schedules')->get();
-        return response()->json($zones);
-    }
+public function index()
+{
+    // On récupère toutes les zones (tu peux les créer via un Seeder ou Tinker)
+    $zones = \App\Models\Zone::all();
+    return response()->json($zones);
+}
 
     /**
      * Enregistre une nouvelle zone dans la base de données.

@@ -20,8 +20,8 @@ protected $fillable = [
     'name',
     'email',
     'password',
-    'telephone', // ✅ AJOUTE CETTE LIGNE ICI
-    'role',      // Ajoute aussi 'role' si tu l'utilises dans ton contrôleur
+    'telephone',
+    'role', // <-- AJOUTE ÇA ICI
 ];
 
 

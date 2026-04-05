@@ -13,9 +13,8 @@
   <!-- ❌ ON SUPPRIME LES ANCIENNES LIGNES SANS ASSET ICI -->
 </head>
 <body>
-  <header style="padding: 20px; text-align: center;">
-    <h1 style="color: #27ae60; font-weight: 900;">Signaler un problème</h1>
-  </header>
+@include('partials.header', ['subtitle' => 'Mes dernières alertes'])
+
 
   <main style="padding: 20px;">
     <!-- ✅ AJOUT DE enctype POUR LES PHOTOS -->
@@ -44,18 +43,8 @@
     </div>
   </main>
 
-<footer class="mobile-nav">
-  <nav>
-    <ul class="nav-list">
-      <li class="nav-item"><a href="{{ url('/') }}">🏠<span>Accueil</span></a></li>
-      <!-- ✅ ON AJOUTE LA CARTE ICI -->
-      <li class="nav-item"><a href="{{ url('/carte') }}">🗺️<span>Carte</span></a></li>
-      <li class="nav-item"><a href="{{ url('/signalement') }}">📢<span>Signaler</span></a></li>
-      <li class="nav-item"><a href="{{ url('/notifications') }}">🔔<span>Notifs</span></a></li>
-      <li class="nav-item"><a href="{{ url('/profil') }}">👤<span>Profil</span></a></li>
-    </ul>
-  </nav>
-</footer>
+@include('partials.footer')
+
 
 
   <style>
@@ -67,6 +56,9 @@
   <script src="{{ asset('js/script.js') }}"></script>
   <!-- ✅ AJOUTE CETTE LIGNE ICI -->
   <script src="{{ asset('js/signalement.js') }}"></script>
+@include('partials.logout-modal')
+@include('partials.side-menu')
+
 </body>
 
 </body>

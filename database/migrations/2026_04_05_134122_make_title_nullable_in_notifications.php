@@ -9,12 +9,9 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-public function up(): void
-{
-    Schema::table('reports', function (Blueprint $table) {
-        // On ajoute les colonnes numériques nécessaires pour Leaflet
-        $table->double('latitude')->nullable();
-        $table->double('longitude')->nullable();
+public function up(): void {
+    Schema::table('notifications', function (Blueprint $table) {
+        $table->string('title')->nullable()->change();
     });
 }
 
@@ -24,7 +21,7 @@ public function up(): void
      */
     public function down(): void
     {
-        Schema::table('reports', function (Blueprint $table) {
+        Schema::table('notifications', function (Blueprint $table) {
             //
         });
     }

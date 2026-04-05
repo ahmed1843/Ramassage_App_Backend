@@ -81,4 +81,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Rafraîchissement auto toutes les 30 secondes
     setInterval(() => actualiserCarte(map), 30000);
+/// --- FOCUS SUR UNE ZONE DEPUIS L'ACCUEIL (VERSION ACCENTS CORRIGÉS) ---
+const urlParams = new URLSearchParams(window.location.search);
+const zoneRaw = urlParams.get('zone');
+
+if (zoneRaw) {
+    // 1. On nettoie le nom : minuscule + on enlève les accents
+    const zoneClean = zoneRaw.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
+
+    console.log("Recherche du quartier nettoyé :", zoneClean);
+
+    const coordsZones = {
+        'dakar': [14.7167, -17.4677],
+        'medina': [14.6850, -17.4480], // "medina" sans accent ici
+        'plateau': [14.6667, -17.4333],
+        'almadies': [14.7480, -17.5120],
+        'grand yoff': [14.7300, -17.4500]
+    };
+
+    if (coordsZones[zoneClean]) {
+        setTimeout(() => {
+            map.setView(coordsZones[zoneClean], 16);
+            L.popup()
+                .setLatLng(coordsZones[zoneClean])
+                .setContent(`📍 <b>Quartier : ${zoneRaw}</b>`)
+                .openOn(map);
+        }, 600);
+    }
+}
+
+
 });

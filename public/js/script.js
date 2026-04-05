@@ -1,4 +1,4 @@
-// --- 1. CONFIGURATION DES CONSEILS ---
+// --- 1. CONFIGURATION ET CONSEILS ÉCO ---
 const tips = [
     "🌍 Un déchet bien trié = un environnement protégé.",
     "🗑️ Sortez vos poubelles uniquement avant le passage du camion.",
@@ -21,106 +21,140 @@ function faireDefilerConseils() {
             tipText.innerText = tips[index];
             tipText.style.opacity = 1;
         }, 500);
-    }, 10000);
+    }, 8000);
 }
 
-// --- 2. GESTION DE L'AFFICHAGE DYNAMIQUE ---
-function gererAffichageUtilisateur() {
-    const authSection = document.getElementById('auth-section');
-    const userData = localStorage.getItem('user');
-    const footerNav = document.querySelector('.mobile-nav');
-    
-    const elementsDashboard = [
-        document.getElementById('eco-tip-container'),
-        document.getElementById('search-zone'),
-        document.getElementById('zones-container'),
-        document.getElementById('stats-section'),
-        document.querySelector('.next-pickup')
-    ];
-
-    if (userData && authSection) {
-        // --- MODE CONNECTÉ ---
-        const user = JSON.parse(userData);
-        const mots = user.name ? user.name.trim().split(/\s+/) : ["Utilisateur"];
-        const initiales = (mots.length > 1) ? (mots[0][0] + mots[mots.length-1][0]).toUpperCase() : mots[0].substring(0, 2).toUpperCase();
-        const couleurs = ['#2ecc71', '#3498db', '#9b59b6', '#e67e22', '#1abc9c'];
-        const couleurUser = couleurs[user.name ? user.name.length % couleurs.length : 0];
-
-  authSection.innerHTML = `
-    <div style="display:grid; grid-template-columns: 40px 1fr 40px; align-items:center; background:white; padding:15px; border-radius:20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom:10px;">
-        <div></div>
-        <a href="/profil" style="display:flex; flex-direction:column; align-items:center; gap:8px; text-decoration:none;">
-            <!-- ... reste du code ... -->
-        </a>
-        <button onclick="confirmerDeconnexion()" ...>🚪</button>
-    </div>`;
-        elementsDashboard.forEach(el => { if(el) el.style.display = (el.id === 'eco-tip-container') ? 'flex' : 'block'; });
-        if(footerNav) footerNav.style.display = 'block';
-
-        afficherToutesLesZones();
-        faireDefilerConseils();
-
-    } else if (authSection) {
-        // --- MODE DÉCONNECTÉ ---
-        authSection.innerHTML = `
-            <div style="text-align:center; padding:40px 20px; background:white; border-radius:25px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom:20px;">
-                <div style="font-size:60px; margin-bottom:20px;">🌍</div>
-                <h2 style="color:#2c3e50; margin-bottom:10px;">Dakar Propre</h2>
-                <p style="color:#7f8c8d; margin-bottom:30px; font-size:15px;">Connectez-vous pour suivre les camions et protéger votre quartier.</p>
-                <button onclick="window.location.href='/login'" style="width:100%; background:#2ecc71; color:white; border:none; padding:16px; border-radius:15px; font-weight:bold; font-size:16px; cursor:pointer; box-shadow: 0 4px 15px rgba(46,204,113,0.3);">Accéder à mon espace</button>
-                <p style="margin-top:15px; font-size:13px; color:#95a5a6;">Pas encore inscrit ? <a href="/register" style="color:#2ecc71; font-weight:bold; text-decoration:none;">Créer un compte</a></p>
-            </div>`;
-        
-        elementsDashboard.forEach(el => { if(el) el.style.display = 'none'; });
-        if(footerNav) footerNav.style.display = 'none';
-    }
-}
-
-// --- 3. RÉCUPÉRATION DES DONNÉES API ---
-async function afficherToutesLesZones() {
+// --- 2. CHARGEMENT DES QUARTIERS ET RECHERCHE ---
+async function chargerQuartiers() {
     const container = document.getElementById('zones-container');
     if (!container) return;
+
     try {
-        const response = await fetch('/api/zones'); 
-        const json = await response.json();
-        const zones = json.data || json;
-        if (zones.length > 0) {
-            container.innerHTML = zones.map(zone => `
-                <section class="zone-card bg-white p-4 rounded-xl shadow-sm border-l-4 border-primary mb-3">
-                    <h2 class="font-bold text-lg">${zone.nom || zone.name}</h2>
-                    <p class="text-gray-600 text-sm">${zone.description || 'Quartier de Dakar'}</p>
-                </section>`).join('');
-            activerLaRecherche();
+        const response = await fetch('/api/zones');
+        const zones = await response.json();
+
+        if (zones.length === 0) {
+            container.innerHTML = "<p style='text-align:center; color:#999;'>Aucune zone répertoriée.</p>";
+            return;
         }
-    } catch (e) { container.innerHTML = "<p>Zones indisponibles.</p>"; }
+
+        container.innerHTML = ""; 
+
+        for (const zone of zones) {
+            const statusColor = zone.status === 'clean' ? '#2ecc71' : '#e74c3c';
+            const statusLabel = zone.status === 'clean' ? 'Propre' : 'Critique';
+
+            let infoHoraire = "⏰ Horaire non défini";
+            try {
+                const schedRes = await fetch(`/api/schedules/zone/${zone.id}`);
+                if (schedRes.ok) {
+                    const sched = await schedRes.json();
+                    if (sched && sched.pickup_time) {
+                        infoHoraire = `🗓️ ${sched.day_of_week} à ${sched.pickup_time.substring(0, 5)}`;
+                    }
+                }
+            } catch (e) { }
+
+            const zoneCard = `
+                <div class="zone-card" style="background: white; padding: 18px; border-radius: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); border-left: 6px solid ${statusColor};">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <strong style="font-size: 17px; color: #2c3e50; display: block;">${zone.name}</strong>
+                            <div style="font-size: 13px; color: #27ae60; font-weight: bold; margin-top: 4px;">${infoHoraire}</div>
+                        </div>
+                        <span style="background: ${statusColor}15; color: ${statusColor}; padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase;">
+                            ${statusLabel}
+                        </span>
+                    </div>
+                    <div style="margin-top: 15px; border-top: 1px solid #f8f9fa; padding-top: 12px;">
+                        <a href="/carte?zone=${encodeURIComponent(zone.name)}" style="text-decoration: none; display: flex; align-items: center; gap: 8px; color: #27ae60; font-size: 13px; font-weight: 700;">
+                            <span>Voir sur la carte</span>
+                            <span style="font-size: 16px;">📍</span>
+                        </a>
+                    </div>
+                </div>`;
+            container.innerHTML += zoneCard;
+        }
+        activerLaRecherche();
+    } catch (error) {
+        container.innerHTML = "<p style='text-align:center;'>Erreur de chargement.</p>";
+    }
 }
 
 function activerLaRecherche() {
     const searchInput = document.getElementById('search-zone');
     if (!searchInput) return;
+
     searchInput.addEventListener('input', (e) => {
         const term = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-        const zones = document.querySelectorAll('.zone-card');
-        zones.forEach(zone => {
-            const text = zone.innerText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            zone.style.display = text.includes(term) ? "block" : "none";
+        const cards = document.querySelectorAll('.zone-card');
+        
+        cards.forEach(card => {
+            const text = card.innerText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            card.style.display = text.includes(term) ? "block" : "none";
         });
     });
 }
 
+// --- 3. CHARGEMENT DU FEED ACTUALITÉS ---
+async function chargerFeedActualites() {
+    const feed = document.getElementById('latest-reports-feed');
+    if (!feed) return;
+
+    try {
+        const response = await fetch('/api/reports');
+        const reports = await response.json();
+
+        const recentWithImage = reports
+            .filter(r => r.image)
+            .reverse()
+            .slice(0, 5);
+
+        if (recentWithImage.length === 0) {
+            feed.innerHTML = "<p style='color:#999; font-size:13px;'>Aucune photo récente.</p>";
+            return;
+        }
+
+        feed.innerHTML = ""; 
+
+        recentWithImage.forEach(report => {
+            const isUrgent = report.status === 'pending';
+            const statusLabel = isUrgent ? '🔴 Urgent' : '🟢 Réglé';
+            const statusColor = isUrgent ? '#e74c3c' : '#2ecc71';
+
+            const card = `
+                <div class="news-card" style="flex: 0 0 260px; scroll-snap-align: start; background: white; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; display: flex; flex-direction: column; margin-right: 15px;">
+                    <div style="width: 100%; height: 160px; position: relative;">
+                        <img src="/storage/${report.image}" style="width: 100%; height: 100%; object-fit: cover;">
+                        <div style="position: absolute; top: 12px; left: 12px; background: white; color: ${statusColor}; padding: 6px 12px; border-radius: 12px; font-size: 11px; font-weight: 800; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+                            ${statusLabel}
+                        </div>
+                    </div>
+                    <div style="padding: 16px;">
+                        <strong style="color: #2c3e50; font-size: 14px;">${report.location_name || 'Lieu inconnu'}</strong>
+                        <p style="color: #7f8c8d; font-size: 12px; margin: 5px 0;">Signalé récemment</p>
+                    </div>
+                </div>`;
+            feed.innerHTML += card;
+        });
+    } catch (e) {
+        console.error("Erreur feed actus", e);
+    }
+}
+
 // --- 4. INITIALISATION ---
 document.addEventListener('DOMContentLoaded', () => {
-    gererAffichageUtilisateur();
-});
+    // Profil utilisateur
+    const userData = localStorage.getItem('user');
+    if (userData) {
+        const user = JSON.parse(userData);
+        const nameDisplay = document.getElementById('user-name-display');
+        const avatarDisplay = document.getElementById('user-avatar');
+        if (nameDisplay) nameDisplay.innerText = (user.name || "Citoyen").split(' ')[0];
+        if (avatarDisplay) avatarDisplay.innerText = (user.name ? user.name.charAt(0) : "👤").toUpperCase();
+    }
 
-function confirmerDeconnexion() { 
-    const modal = document.getElementById('logout-modal');
-    if(modal) modal.style.display = 'flex'; 
-}
-function validerDeconnexion() {
-    localStorage.removeItem('user');
-    window.location.href = '/';
-}
-function fermerModal() {
-    document.getElementById('logout-modal').style.display = 'none';
-}
+    faireDefilerConseils();
+    chargerQuartiers();
+    chargerFeedActualites();
+});

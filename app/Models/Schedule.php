@@ -3,16 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Schedule extends Model
 {
-    use HasFactory;
+    protected $fillable = [
+        'zone_id', 
+        'day_of_week', 
+        'pickup_time', 
+        'truck_name'
+    ];
 
-    protected $fillable = ['zone_id', 'collection_day', 'start_time', 'end_time'];
-
-    public function zone()
-    {
+    public function zone() {
         return $this->belongsTo(Zone::class);
     }
 }

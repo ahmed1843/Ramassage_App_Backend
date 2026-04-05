@@ -9,19 +9,23 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-public function up(): void
+public function up()
 {
     Schema::create('reports', function (Blueprint $table) {
         $table->id();
         $table->string('title');
         $table->text('description')->nullable();
-        $table->decimal('latitude', 10, 8); // Précision pour GPS
+        $table->decimal('latitude', 10, 8);
         $table->decimal('longitude', 11, 8);
-        $table->enum('status', ['pending', 'in_progress', 'cleaned'])->default('pending');
-        $table->string('image_url')->nullable();
+        $table->string('status')->default('pending');
+        $table->string('image')->nullable();
+        $table->foreignId('user_id')->constrained()->onDelete('cascade');
+        $table->foreignId('zone_id')->constrained()->onDelete('cascade');
         $table->timestamps();
     });
 }
+
+
 
     /**
      * Reverse the migrations.
