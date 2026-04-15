@@ -105,5 +105,18 @@
   <script src="{{ asset('js/config.js') }}"></script>
   <script src="{{ asset('js/script.js') }}"></script>
   <script src="{{ asset('js/login.js') }}"></script> <!-- 👈 INDISPENSABLE -->
+<style>
+    /* On cible la classe que tu as utilisée pour ton footer */
+    footer.mobile-nav { 
+        display: none !important; 
+    }
+    
+    /* On retire aussi le padding du main pour que la page soit bien centrée */
+    main { 
+        padding-bottom: 20px !important; 
+    }
+</style>
+
 </body>
 </html>
+

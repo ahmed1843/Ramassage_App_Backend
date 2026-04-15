@@ -1,3 +1,4 @@
+<div id="main-footer">
 <footer class="mobile-nav">
   <nav>
     <ul class="nav-list">
@@ -9,3 +10,6 @@
     </ul>
   </nav>
 </footer>
+   <!-- Tout ton code de footer actuel -->
+</div>
+

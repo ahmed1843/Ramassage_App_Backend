@@ -43,14 +43,14 @@ main {
   padding-bottom: 120px; /* espace pour ne pas cacher le contenu */
 }
 
-
-/* --- Cards (Sections) --- */
 section {
-  background: var(--white);
+  background: var(--card-bg); /* Utilise la variable au lieu de var(--white) */
   padding: 20px;
   border-radius: 15px;
   box-shadow: 0 4px 6px rgba(0,0,0,0.05);
   text-align: center;
+  color: var(--text-main); /* Assure que le texte change aussi */
+  transition: background 0.3s, color 0.3s;
 }
 
 .next-pickup h2 {
@@ -97,7 +97,7 @@ footer.mobile-nav {
     background-color: white !important;
     border-top: 1px solid #eeeeee !important;
     box-shadow: 0 -5px 25px rgba(0,0,0,0.1) !important;
-    z-index: 999999 !important;
+    z-index: 1000 !important; /* On baisse le footer */
     display: flex !important;
     align-items: center !important;
     justify-content: center !important; /* Centre le nav */
@@ -179,7 +179,7 @@ footer.mobile-nav nav {
     width: 280px;
     height: 100%;
     background: white;
-    z-index: 2000000;
+     z-index: 2000000;
     transition: right 0.4s ease-in-out;
     box-shadow: -10px 0 30px rgba(0,0,0,0.1);
     padding: 30px 20px;
@@ -189,5 +189,60 @@ footer.mobile-nav nav {
 #side-menu.active {
     right: 0 !important;
 }
+:root {
+    --bg-color: #f8f9fa;
+    --card-bg: #ffffff;
+    --text-main: #2c3e50;
+    --text-muted: #7f8c8d;
+}
+
+[data-theme="dark"] {
+    --bg-color: #121212;
+    --card-bg: #1e1e1e;
+    --text-main: #f1f1f1;
+    --text-muted: #b0b0b0;
+}
+
+body { background-color: var(--bg-color); color: var(--text-main); transition: 0.3s; }
+.card, .stat-box { background-color: var(--card-bg) !important; color: var(--text-main) !important; }
+/* Menu Latéral en mode sombre */
+[data-theme="dark"] #side-menu {
+    background-color: var(--card-bg);
+    color: var(--text-main);
+}
+
+/* Footer Mobile en mode sombre */
+[data-theme="dark"] footer.mobile-nav {
+    background-color: #1a1a1a !important; /* Un noir légèrement différent pour détacher du fond */
+    border-top: 1px solid #333 !important;
+}
+
+[data-theme="dark"] .nav-item a span:last-child {
+    color: var(--text-muted);
+}
+.user-location-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.pulse {
+    width: 15px;
+    height: 15px;
+    background: #2196F3; /* Bleu Google */
+    border-radius: 50%;
+    box-shadow: 0 0 0 rgba(33, 150, 243, 0.4);
+    animation: pulse-animation 2s infinite;
+    border: 2px solid white;
+}
+
+@keyframes pulse-animation {
+    0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7); }
+    70% { box-shadow: 0 0 0 15px rgba(33, 150, 243, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
+}
+
+
+
 
 

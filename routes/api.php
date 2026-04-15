@@ -21,10 +21,13 @@ use Illuminate\Support\Facades\Notification;
 | ROUTES PUBLIQUES (Accessibles par tous)
 |--------------------------------------------------------------------------
 */
+// --- Signalements (Public le temps du test mobile) ---
+Route::post('/reports', [ReportController::class, 'store']);
 
 // --- Authentification ---
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/logout', [AuthController::class, 'logout']);
 
 
 // --- Consultation Publique (Read-Only) ---
@@ -42,7 +45,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
     // Signalements (Attacher l'user_id automatiquement)
-    Route::post('/reports', [ReportController::class, 'store']);
     Route::get('/my-reports', [ReportController::class, 'myReports']);
 
     // Notifications

@@ -5,11 +5,17 @@ async function apiFetch(endpoint, options = {}) {
     
     const defaultHeaders = {
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
+        // 'Content-Type' sera ajouté seulement si ce n'est pas un FormData
     };
 
     if (token) {
         defaultHeaders['Authorization'] = `Bearer ${token}`;
+    }
+
+    // 💡 ASTUCE : Si on envoie un FormData (photo), on laisse le navigateur 
+    // gérer lui-même le Content-Type (ne pas mettre application/json)
+    if (!(options.body instanceof FormData)) {
+        defaultHeaders['Content-Type'] = 'application/json';
     }
 
     const config = {
@@ -22,10 +28,8 @@ async function apiFetch(endpoint, options = {}) {
 
     const response = await fetch(`${BASE_URL}${endpoint}`, config);
     
-    // Si le token est expiré (401), on déconnecte
     if (response.status === 401) {
         localStorage.clear();
-        // ✅ CHANGEMENT ICI : login.html -> /login
         window.location.href = '/login';
     }
 

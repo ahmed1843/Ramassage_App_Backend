@@ -17,42 +17,44 @@ class ReportController extends Controller
     /**
      * Enregistre un nouveau rapport AVEC PHOTO.
      */
-    public function store(Request $request)
-    {
-        try {
-            // ✅ CORRECTIF : On définit les règles obligatoires
-            $validated = $request->validate([
-                'title'       => 'required|string',
-                'description' => 'nullable|string',
-                'latitude'    => 'required',
-                'longitude'   => 'required',
-            ]);
+public function store(Request $request)
+{
+    try {
+        // 1. Validation souple pour le développement mobile
+        $validated = $request->validate([
+            'title'       => 'required|string',
+            'description' => 'nullable|string',
+            'latitude'    => 'required',
+            'longitude'   => 'required',
+            'image'       => 'nullable|image|max:5120', // Max 5Mo pour les photos du tel
+        ]);
 
-            // On ajoute manuellement les données système
-            $validated['user_id'] = auth()->id() ?? 1; 
-            $validated['zone_id'] = $request->zone_id ?? 1;
-            $validated['status']  = 'pending';
+        // 2. On complète les données manquantes pour satisfaire Postgres
+        $validated['user_id'] = auth()->id() ?? 1; // Si pas de session, on met l'ID 1
+        $validated['zone_id'] = $request->zone_id ?? 1;
+        $validated['status']  = 'pending';
+        $validated['type']    = $request->type ?? 'Ordinaire'; // On ajoute explicitement le type
 
-            // ✅ Gérer l'image si elle est présente dans la requête
-            if ($request->hasFile('image')) {
-                $path = $request->file('image')->store('reports', 'public');
-                $validated['image'] = $path; // Assure-toi que la colonne s'appelle 'image' dans ta DB
-            }
-
-            $report = Report::create($validated);
-
-            return response()->json([
-                'message' => 'Signalement créé !',
-                'data' => $report
-            ], 201);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            // Retourne les erreurs de validation précises (ex: titre manquant)
-            return response()->json(['errors' => $e->errors()], 422);
-        } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+        // 3. Gestion de l'image
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('reports', 'public');
+            $validated['image'] = $path;
         }
+
+        // 4. Création dans la base Docker
+        $report = Report::create($validated);
+
+        return response()->json([
+            'message' => '✅ Signalement bien enregistré dans la base !',
+            'data' => $report
+        ], 201);
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json(['message' => 'Erreur validation', 'errors' => $e->errors()], 422);
+    } catch (\Exception $e) {
+        return response()->json(['message' => 'Erreur serveur', 'error' => $e->getMessage()], 500);
     }
+}
 
     public function myReports(Request $request)
     {

@@ -10,7 +10,9 @@ if (loginForm) {
 
         try {
             // ✅ On utilise un chemin relatif pour éviter les erreurs de port
-            const response = await fetch('/api/login', {
+            // Remplace '/api/login' par '/login'
+        const response = await fetch('/login', {
+
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

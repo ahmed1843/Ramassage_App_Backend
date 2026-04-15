@@ -156,7 +156,7 @@ return [
     |
     */
 
-    'domain' => env('SESSION_DOMAIN'),
+  'domain' => env('SESSION_DOMAIN', null), // Assure-toi que c'est bien à 'null' ou lié à l'env
 
     /*
     |--------------------------------------------------------------------------
@@ -199,7 +199,7 @@ return [
     |
     */
 
-    'same_site' => env('SESSION_SAME_SITE', 'lax'),
+'same_site' => 'lax', // Au lieu de 'strict'
 
     /*
     |--------------------------------------------------------------------------

@@ -59,6 +59,18 @@
 </main>
 
   <script src="{{ asset('js/config.js') }}"></script>
-  <script src="{{ asset('js/register.js') }}"></script>
+ <script src="{{ asset('js/register.js') }}?v={{ time() }}"></script>
+<style>
+    /* Masque n'importe quel footer qui essaierait de s'afficher */
+    footer, .mobile-nav, #main-footer { 
+        display: none !important; 
+    }
+    /* On remet un padding normal en bas puisque le menu n'est plus là */
+    main { 
+        padding-bottom: 40px !important; 
+    }
+</style>
+
+
 </body>
 </html>
