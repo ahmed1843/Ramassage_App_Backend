@@ -1,3 +1,4 @@
+// database/migrations/xxxx_add_push_token_and_street_to_users_table.php
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -6,18 +7,18 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up(): void
+    public function up()
     {
         Schema::table('users', function (Blueprint $table) {
-            // On ajoute la colonne role, par défaut c'est un "citizen" (citoyen)
-            $table->string('role')->default('citizen')->after('email');
+            $table->string('push_token')->nullable()->after('remember_token');
+            $table->string('street')->nullable()->after('address');
         });
     }
 
-    public function down(): void
+    public function down()
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('role');
+            $table->dropColumn(['push_token', 'street']);
         });
     }
 };

@@ -3,96 +3,105 @@
 namespace App\Http\Controllers;
 
 use App\Models\Report;
-use App\Models\Notification;
 use Illuminate\Http\Request;
-use App\Http\Resources\ReportResource;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class ReportController extends Controller
 {
-    public function index() {
-        return Report::all(); 
-    }
-
-    /**
-     * Enregistre un nouveau rapport AVEC PHOTO.
-     */
-public function store(Request $request)
+    public function store(Request $request)
 {
     try {
-        // 1. Validation souple pour le développement mobile
+        // Affiche les données reçues dans les logs
+        \Log::info('Données reçues:', $request->all());
+        \Log::info('Fichier reçu:', $request->hasFile('photo') ? ['oui' => true, 'name' => $request->file('photo')->getClientOriginalName()] : ['non' => false]);
+        
         $validated = $request->validate([
-            'title'       => 'required|string',
-            'description' => 'nullable|string',
-            'latitude'    => 'required',
-            'longitude'   => 'required',
-            'image'       => 'nullable|image|max:5120', // Max 5Mo pour les photos du tel
+            'title' => 'required|string|min:3|max:255',
+            'description' => 'required|string|min:5|max:1000',
+            'location' => 'required|string|max:255',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
         ]);
 
-        // 2. On complète les données manquantes pour satisfaire Postgres
-        $validated['user_id'] = auth()->id() ?? 1; // Si pas de session, on met l'ID 1
-        $validated['zone_id'] = $request->zone_id ?? 1;
-        $validated['status']  = 'pending';
-        $validated['type']    = $request->type ?? 'Ordinaire'; // On ajoute explicitement le type
-
-        // 3. Gestion de l'image
-        if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('reports', 'public');
-            $validated['image'] = $path;
+        $report = new Report();
+        $report->title = $validated['title'];
+        $report->description = $validated['description'];
+        $report->location = $validated['location'];
+        $report->status = 'pending';
+        
+        if ($request->user()) {
+            $report->user_id = $request->user()->id;
         }
-
-        // 4. Création dans la base Docker
-        $report = Report::create($validated);
-
+        
+        if ($request->hasFile('photo')) {
+            $photoPath = $request->file('photo')->store('reports/' . date('Y/m/d'), 'public');
+            $report->photo_path = $photoPath;
+        }
+        
+        $report->save();
+        
         return response()->json([
-            'message' => '✅ Signalement bien enregistré dans la base !',
+            'success' => true,
+            'message' => 'Signalement envoyé avec succès !',
             'data' => $report
         ], 201);
-
+        
     } catch (\Illuminate\Validation\ValidationException $e) {
-        return response()->json(['message' => 'Erreur validation', 'errors' => $e->errors()], 422);
+        \Log::error('Erreur validation:', $e->errors());
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur de validation',
+            'errors' => $e->errors()
+        ], 422);
+        
     } catch (\Exception $e) {
-        return response()->json(['message' => 'Erreur serveur', 'error' => $e->getMessage()], 500);
+        // Retourne l'erreur complète
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile()
+        ], 500);
     }
 }
-
-    public function myReports(Request $request)
+    
+    // Récupérer tous les signalements
+    public function index()
     {
-        try {
-            $reports = Report::where('user_id', $request->user()->id)
-                             ->with('zone')
-                             ->latest()
-                             ->get();
-
-            return ReportResource::collection($reports);
-        } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
-    }
-
-    public function getMapData()
-    {
-        return Report::select('id', 'title', 'latitude', 'longitude', 'status')
-                     ->whereNotNull('latitude')
-                     ->get();
-    }
-
-    public function update(Request $request, $id) 
-    {
-        $report = Report::findOrFail($id);
-        $oldStatus = $report->status;
+        $reports = Report::with('user')->latest()->paginate(20);
         
-        $report->update(['status' => $request->status]);
-
-        if ($oldStatus !== $request->status) {
-            Notification::create([
-                'user_id' => $report->user_id,
-                'title'   => "Mise à jour de votre signalement",
-                'message' => "Votre signalement est désormais : " . $request->status,
-                'is_read' => false
-            ]);
-        }
-
-        return response()->json($report);
+        return response()->json([
+            'success' => true,
+            'data' => $reports
+        ]);
+    }
+    
+    // Récupérer un signalement spécifique
+    public function show($id)
+    {
+        $report = Report::with('user')->findOrFail($id);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $report
+        ]);
+    }
+    
+    // Mettre à jour le statut (ex: pour les admins/chauffeurs)
+    public function updateStatus(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'required|in:pending,in_progress,resolved'
+        ]);
+        
+        $report = Report::findOrFail($id);
+        $report->status = $request->status;
+        $report->save();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Statut mis à jour',
+            'data' => $report
+        ]);
     }
 }

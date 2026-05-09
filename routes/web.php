@@ -13,6 +13,10 @@ use App\Http\Controllers\AuthController;
 Route::get('/login.html', function () { return view('login'); });
 Route::get('/accueil.html', function () { return view('welcome'); });
 Route::redirect('/home', '/');
+Route::get('/chauffeur', function () {
+    return view('chauffeur'); // Cela va chercher le fichier resources/views/chauffeur.blade.php
+});
+
 
 
 
@@ -22,8 +26,7 @@ Route::redirect('/home', '/');
 | AUTHENTIFICATION (POST)
 |--------------------------------------------------------------------------
 */
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+
 Route::post('/logout', [AuthController::class, 'logout']);
 
 /*

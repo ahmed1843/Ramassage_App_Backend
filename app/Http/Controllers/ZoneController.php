@@ -7,6 +7,18 @@ use Illuminate\Http\Request;
 
 class ZoneController extends Controller
 {
+public function envoyerAlerte(Request $request) {
+    // On valide que la zone existe
+    $request->validate(['zone_id' => 'required|exists:zones,id']);
+
+    // Ici, on simule l'envoi de notification
+    // Dans une version finale, on connecterait Firebase ici
+    return response()->json([
+        'success' => true,
+        'message' => '🔔 Alerte envoyée aux habitants de la zone !'
+    ]);
+}
+
     /**
      * Affiche toutes les zones avec leurs horaires (pour le Frontend).
      */
@@ -56,3 +68,4 @@ public function index()
     public function update(Request $request, string $id) {}
     public function destroy(string $id) {}
 }
+

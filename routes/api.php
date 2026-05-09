@@ -9,95 +9,111 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\NotificationController;
 use App\Models\Report;
-use App\Models\User;
-use App\Notifications\ReportStatusUpdated;
-use Illuminate\Support\Facades\Notification;
-
-
+use App\Models\Zone;
+use App\Models\Notification;
 
 /*
 
 |--------------------------------------------------------------------------
-| ROUTES PUBLIQUES (Accessibles par tous)
+| ROUTES PUBLIQUES
 |--------------------------------------------------------------------------
 */
-// --- Signalements (Public le temps du test mobile) ---
-Route::post('/reports', [ReportController::class, 'store']);
 
 // --- Authentification ---
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-Route::post('/logout', [AuthController::class, 'logout']);
 
+// --- Signalements (avec photo supportée) ---
+Route::get('/reports', [ReportController::class, 'index']);
+Route::post('/reports', [ReportController::class, 'store']);
+Route::post('/signalements', [ReportController::class, 'store']);
 
-// --- Consultation Publique (Read-Only) ---
+// --- Système d'Alerte Camion ---
+Route::post('/alerte-chauffeur', function (Request $request) {
+    $zoneName = $request->zone_name;
+    $statut = $request->actif;
+    Zone::where('name', $zoneName)->update(['alerte_active' => $statut]);
+    return response()->json(['success' => true]);
+});
+
+Route::post('/update-truck-gps', function (Request $request) {
+    Zone::where('name', $request->zone_name)->update([
+        'current_lat' => $request->lat,
+        'current_lng' => $request->lng
+    ]);
+    return response()->json(['success' => true]);
+});
+
+Route::get('/check-alerte', function () {
+    $zoneActive = Zone::where('alerte_active', true)->first();
+    return response()->json([
+        'actif' => $zoneActive ? true : false,
+        'zone'  => $zoneActive ? $zoneActive->name : null
+    ]);
+});
+
+// --- Zones et Horaires ---
 Route::get('/zones', [ZoneController::class, 'index']);
 Route::get('/schedules', [ScheduleController::class, 'index']);
-Route::get('/reports', [ReportController::class, 'index']);
-Route::get('/stats/noise', [StatsController::class, 'noiseStats']);
+Route::get('/schedules/zone/{zoneId}', [ScheduleController::class, 'getByZone']);
 
-// --- Actions Protégées (Utilisateurs connectés) ---
+/*
+
+|--------------------------------------------------------------------------
+| ROUTES PROTÉGÉES (Sanctum) - TOUTES LES ROUTES NOTIFICATIONS ICI
+|--------------------------------------------------------------------------
+*/
 Route::middleware('auth:sanctum')->group(function () {
-  Route::put('/user/update', [AuthController::class, 'updateProfile']); 
-    
-    // Profil & Déconnexion
+    // Utilisateur
     Route::get('/user', fn(Request $request) => $request->user());
+    Route::put('/user/update', [AuthController::class, 'updateProfile']); 
+    Route::get('/my-reports', [ReportController::class, 'myReports']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    // Signalements (Attacher l'user_id automatiquement)
-    Route::get('/my-reports', [ReportController::class, 'myReports']);
-
-    // Notifications
-// Remplace l'ancienne route par celle-ci :
-Route::get('/notifications', function (Request $request) {
-    // On récupère les notifications de l'utilisateur connecté via ton modèle
-    return \App\Models\Notification::where('user_id', $request->user()->id)
-        ->latest()
-        ->get();
-});
-
-    Route::put('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
-
-    // --- Actions Chauffeurs / Binômes ---
-    // On protège l'alerte zone
-    Route::post('/zones/{id}/alert', [NotificationController::class, 'sendZoneAlert']);
-
-
-    // --- Administration ---
-    Route::middleware(['admin'])->group(function () {
-        Route::post('/zones', [ZoneController::class, 'store']);
-        Route::post('/schedules', [ScheduleController::class, 'store']);
-        Route::put('/reports/{id}', [ReportController::class, 'update']);
+    // Notifications locales (BDD)
+    Route::get('/notifications', function (Request $request) {
+        return Notification::where('user_id', $request->user()->id)->latest()->get();
     });
+    
+    // ===== ROUTES NOTIFICATIONS PUSH =====
+    Route::post('/save-push-token', [NotificationController::class, 'savePushToken']);
+    Route::post('/assign-street', [NotificationController::class, 'assignStreet']);
+    Route::get('/streets', [NotificationController::class, 'getStreets']);
+    Route::post('/notify-street', [NotificationController::class, 'notifyStreet']);
+    Route::get('/zones', [NotificationController::class, 'getZones']);
 });
-Route::get('/schedules/zone/{zoneId}', [ScheduleController::class, 'getByZone']); 
 
-Route::get('/reports', [ReportController::class, 'index']);
-// À la fin de routes/api.php
+/*
 
-// Dans routes/api.php
+|--------------------------------------------------------------------------
+| ADMINISTRATION
+|--------------------------------------------------------------------------
+*/
 Route::get('/admin/reports', function () {
-    // Correction : on utilise ->get() et non .get()
-    return App\Models\Report::with('zone')
-        ->orderByRaw("CASE 
-            WHEN status = 'pending' THEN 1 
-            WHEN status = 'in_progress' THEN 2 
-            ELSE 3 
-        END")
-        ->latest()
-        ->get(); 
+    return Report::with('zone')->latest()->get(); 
 });
 
-
-Route::patch('/admin/reports/{id}/status', function (Illuminate\Http\Request $request, $id) {
+Route::patch('/admin/reports/{id}/status', function (Request $request, $id) {
     $report = Report::with(['user', 'zone'])->findOrFail($id);
     $report->update(['status' => $request->status]);
-
+    
     if ($report->user) {
-        // ✅ On utilise notre nouvelle classe simplifiée
-        $notification = new \App\Notifications\ReportStatusUpdated($report);
-        $notification->send($report->user);
+        Notification::create([
+            'user_id' => $report->user->id,
+            'title' => 'Mise à jour de votre signalement',
+            'message' => "Votre signalement #{$report->id} est maintenant : " . $request->status,
+            'type' => 'status_update',
+            'report_id' => $report->id
+        ]);
     }
+    
+    return response()->json(['message' => 'Statut mis à jour avec succès !']);
+});
 
-    return response()->json(['message' => 'Statut mis à jour et notif créée !']);
+// --- Route de test mobile ---
+Route::get('/test-mobile', function () {
+    return response()->json([
+        'message' => 'Connexion réussie avec le Backend Laravel !',
+        'status' => 'EcoWaste Online'
+    ]);
 });

@@ -241,6 +241,48 @@ body { background-color: var(--bg-color); color: var(--text-main); transition: 0
     70% { box-shadow: 0 0 0 15px rgba(33, 150, 243, 0); }
     100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
 }
+/* Style pour le lien actif dans le menu */
+.menu-link.active {
+    background-color: #e8f5e9; /* Vert très clair en fond */
+    color: #27ae60 !important;   /* Texte en vert foncé */
+    border-right: 5px solid #27ae60; /* Petite barre verticale à droite */
+    font-weight: 800;
+}
+/* Effet au survol sur les liens du menu latéral */
+#nav-links-list li a:hover {
+    background-color: #e8f5e9 !important; /* Fond vert très clair */
+    color: #27ae60 !important;           /* Texte vert */
+    transform: translateX(5px);          /* Petit décalage vers la droite pour l'effet */
+    transition: all 0.2s ease;           /* Animation fluide */
+}
+
+/* Optionnel : Faire passer l'icône en vert aussi au survol */
+#nav-links-list li a:hover span {
+    filter: hue-rotate(90deg); /* Change légèrement la couleur de l'émoji si besoin */
+}
+/* 1. FORCE LE VERT SUR LE MENU LATÉRAL AU SURVOL */
+#side-menu nav a:hover {
+    background-color: #e8f5e9 !important;
+    color: #27ae60 !important;
+    padding-left: 25px !important; /* Petit effet de glissement */
+    transition: all 0.3s ease;
+}
+
+/* 2. FORCE LE VERT SUR LE FOOTER (MENU DU BAS) AU SURVOL */
+.nav-item a:hover span {
+    color: #27ae60 !important;
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+}
+
+/* 3. EFFET SUR LE BOUTON DÉCONNEXION (ROUGE AU SURVOL) */
+#side-menu button:hover {
+    background-color: #e74c3c !important;
+    color: white !important;
+    border-color: #e74c3c !important;
+}
+
+
 
 
 

@@ -29,3 +29,4 @@
     <script src="{{ asset('js/config.js') }}"></script>
     <script src="{{ asset('js/carte.js') }}"></script>
 </body>
+

@@ -86,20 +86,32 @@ async function mettreAJourProfil(nom, quartier, token) {
     } catch (e) { console.error(e); }
 }
 
-// --- CHARGEMENT DES SIGNALEMENTS ---
 async function chargerMesSignalements(token) {
     const container = document.getElementById('my-reports-list');
+    const user = JSON.parse(localStorage.getItem('user')); // On récupère l'user connecté
+
     try {
-        const response = await fetch('/api/my-reports', { // ✅ URL Relative
-            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+        // ✅ On utilise /api/reports au lieu de /api/my-reports
+        const response = await fetch('/api/reports', { 
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Accept': 'application/json' 
+            }
         });
+
         const res = await response.json();
-        tousLesRapports = res.data || res || [];
+        
+        // ✅ FILTRAGE : On ne garde que les rapports de l'utilisateur connecté
+        const tousLesRapportsBruts = res.data || res || [];
+        tousLesRapports = tousLesRapportsBruts.filter(r => String(r.user_id) === String(user.id));
+
         afficherSignalementsFiltrés('all');
     } catch (e) { 
+        console.error("Erreur chargement :", e);
         if(container) container.innerHTML = "<p class='text-center'>Impossible de charger vos signalements.</p>";
     }
 }
+
 
 function afficherSignalementsFiltrés(filtre) {
     const container = document.getElementById('my-reports-list');

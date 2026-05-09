@@ -5,107 +5,120 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
-    // ✅ INSCRIPTION
+    // --- INSCRIPTION ---
     public function register(Request $request) {
-        // 1. On valide les données
-        $validator = Validator::make($request->all(), [
-            'prenom'    => 'required|string|max:255',
-            'nom'       => 'required|string|max:255',
-            'telephone' => 'required|string',
-            'email'     => 'required|string|email|unique:users,email',
-            'password'  => 'required|string|min:8'
-        ]);
+        try {
+            $user = User::create([
+                'name'      => $request->name ?? 'Utilisateur Sans Nom',
+                'email'     => $request->email,
+                'password'  => Hash::make($request->password),
+                'role'      => $request->role ?? 'citizen',  // citizen ou driver
+                'street'    => $request->street ?? null,     // ← AJOUTÉ : Rue pour les citoyens
+                'telephone' => $request->telephone ?? '00000000',
+                'push_token' => null,                         // ← AJOUTÉ : Token push
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Utilisateur créé !',
+                'user' => $user,
+                'token' => $user->createToken('auth_token')->plainTextToken // ← AJOUTÉ pour l'auth
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error("Erreur Inscription : " . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        // 2. On crée l'utilisateur
-  // 2. On crée l'utilisateur
-$user = User::create([
-    'name'      => $request->prenom . ' ' . $request->nom,
-    'email'     => $request->email,
-    'telephone' => $request->telephone,
-    'password'  => Hash::make($request->password),
-    // 'role'   => 'citizen'  <-- ❌ SUPPRIME CETTE LIGNE si tu n'as pas de colonne 'role'
-]);
-
-        // 3. On génère le token
-        $token = $user->createToken('myapptoken')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Utilisateur créé avec succès !',
-            'user'    => $user, 
-            'token'   => $token
-        ], 201);
     }
 
-public function login(Request $request) {
-    $fields = $request->validate([
-        'email'    => 'required|string|email',
-        'password' => 'required|string'
-    ]);
+    // --- CONNEXION ---
+    public function login(Request $request) {
+        try {
+            // 1. On cherche l'utilisateur par son email
+            $user = User::where('email', $request->email)->first();
 
-    $user = User::where('email', $fields['email'])->first();
+            // 2. On vérifie si l'utilisateur existe et si le mot de passe est correct
+            if (!$user || !Hash::check($request->password, $user->password)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Email ou mot de passe incorrect'
+                ], 401);
+            }
 
-    if(!$user || !Hash::check($fields['password'], $user->password)) {
-        // Si c'est une requête API (mobile), on rend du JSON
-        if ($request->wantsJson()) {
-            return response()->json(['message' => 'Identifiants incorrects'], 401);
+            // 3. Si c'est bon, on renvoie l'utilisateur et son token
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Connexion réussie',
+                'user' => $user,
+                'token' => $user->createToken('auth_token')->plainTextToken
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error("Erreur Login : " . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Erreur lors de la connexion',
+                'debug' => $e->getMessage()
+            ], 500);
         }
-        // Si c'est le formulaire web, on revient en arrière avec une erreur
-        return back()->withErrors(['email' => 'Identifiants incorrects']);
     }
 
-    // On connecte l'utilisateur pour la session Web
-    auth()->login($user);
-
-    // 🛡️ On génère le token pour l'éventuelle partie mobile/API
-    $token = $user->createToken('myapptoken')->plainTextToken;
-
-    // --- LOGIQUE DE REDIRECTION ICI ---
-    if (!$request->wantsJson()) {
-        if ($user->role === 'admin') {
-            return redirect('/admin'); // Envoie l'admin vers le tableau vert
-        }
-        return redirect('/profil'); // Envoie l'utilisateur normal vers son profil
-    }
-
-    // Réponse JSON pour l'application mobile
-    return response()->json([
-        'user'  => $user, 
-        'token' => $token,
-        'role'  => $user->role
-    ], 200);
-}
-
-
-
-    // ✅ MISE À JOUR DU PROFIL
-    public function updateProfile(Request $request) {
-        $user = $request->user();
-
-        $fields = $request->validate([
-            'name'     => 'sometimes|required|string|max:255',
-            'email'    => 'sometimes|required|string|email|unique:users,email,' . $user->id,
-            'quartier' => 'nullable|string' 
-        ]);
-
-        $user->update($fields);
-
-        return response()->json([
-            'message' => 'Profil mis à jour avec succès',
-            'user'    => $user
-        ], 200);
-    }
-
-    // ✅ DÉCONNEXION
+    // --- DÉCONNEXION ---
     public function logout(Request $request) {
-        $request->user()->tokens()->delete();
-        return response()->json(['message' => 'Déconnecté']);
+        try {
+            $request->user()->currentAccessToken()->delete();
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Déconnecté'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // --- RÉCUPÉRER L'UTILISATEUR CONNECTÉ ---
+    public function user(Request $request) {
+        return response()->json($request->user());
+    }
+
+    // --- METTRE À JOUR LE PROFIL ---
+    public function updateProfile(Request $request) {
+        try {
+            $user = $request->user();
+            
+            if ($request->has('name')) {
+                $user->name = $request->name;
+            }
+            if ($request->has('telephone')) {
+                $user->telephone = $request->telephone;
+            }
+            if ($request->has('street')) {
+                $user->street = $request->street;
+            }
+            
+            $user->save();
+            
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Profil mis à jour',
+                'user' => $user
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 }

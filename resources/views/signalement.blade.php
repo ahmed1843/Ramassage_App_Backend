@@ -68,27 +68,148 @@
     <!-- Scripts -->
     <script src="{{ asset('js/config.js') }}"></script>
     <script src="{{ asset('js/script.js') }}"></script>
+<script>
+// 1. GÉOLOCALISATION
+function obtenirLocalisation() {
+    const input = document.getElementById('location');
+    input.value = "Localisation en cours...";
+    
+    if (!navigator.geolocation) {
+        input.value = "GPS non supporté";
+        return;
+    }
 
-    <script>
-        // Fonction simple pour la localisation (même si bloquée, elle ne fera pas planter la page)
-        function obtenirLocalisation() {
-            const input = document.getElementById('location');
-            input.value = "Localisation en cours...";
-            
-            navigator.geolocation.getCurrentPosition(
-                (pos) => { input.value = `Lat: ${pos.coords.latitude.toFixed(4)}, Long: ${pos.coords.longitude.toFixed(4)}`; },
-                (err) => { input.value = "Dakar (Position manuelle)"; alert("GPS bloqué par le navigateur (HTTP)."); }
-            );
+    navigator.geolocation.getCurrentPosition(
+        (pos) => { 
+            input.value = `Lat: ${pos.coords.latitude.toFixed(4)}, Long: ${pos.coords.longitude.toFixed(4)}`; 
+        },
+        (err) => { 
+            input.value = "Dakar (Position manuelle)"; 
+            alert("GPS bloqué ou indisponible."); 
+        },
+        { enableHighAccuracy: true }
+    );
+}
+
+// 2. PRÉVISUALISATION DE LA PHOTO
+document.getElementById('photo').onchange = function (evt) {
+    const [file] = this.files;
+    if (file) {
+        document.getElementById('preview-container').style.display = 'block';
+        document.getElementById('photo-preview').src = URL.createObjectURL(file);
+    }
+};
+
+// 3. ENVOI DU SIGNALEMENT
+async function envoyerSignalement() {
+    const btn = document.getElementById('btn-envoyer');
+    const form = document.getElementById('form-signalement');
+    const locationValue = document.getElementById('location').value;
+    
+    // --- AJOUT : Récupérer l'utilisateur pour avoir son ID ---
+    const userData = JSON.parse(localStorage.getItem('user'));
+    const userId = userData ? userData.id : null;
+
+    const coords = locationValue.match(/-?\d+\.\d+/g); 
+    const lat = coords ? coords[0] : "14.7167";
+    const lng = coords ? coords[1] : "-17.4677";
+
+    const formData = new FormData();
+    formData.append('title', 'Signalement via Mobile');
+    formData.append('description', document.getElementById('description').value);
+    formData.append('latitude', lat);
+    formData.append('longitude', lng);
+    formData.append('location_name', locationValue);
+    
+    // --- AJOUT : On envoie l'ID de l'utilisateur ---
+    if (userId) {
+        formData.append('user_id', userId);
+    }
+    
+    const photoInput = document.getElementById('photo');
+    if (photoInput.files.length > 0) {
+        formData.append('image', photoInput.files[0]);
+    }
+
+    btn.disabled = true;
+    btn.innerText = "Envoi en cours...";
+
+    try {
+        const response = await fetch('/api/signalements', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json'
+                // Si ton API est protégée, ajoute aussi le Bearer Token ici
+            },
+            body: formData
+        });
+
+        if (response.ok) {
+            form.style.display = "none";
+            document.getElementById('confirmation').style.display = "block";
+            setTimeout(() => { window.location.href = "/profil"; }, 2500);
+        } else {
+            alert("Erreur lors de l'envoi");
+            btn.disabled = false;
         }
+    } catch (e) {
+        console.error(e);
+        btn.disabled = false;
+    }
+}
 
-        // Prévisualisation de la photo
-        document.getElementById('photo').onchange = function (evt) {
-            const [file] = this.files;
-            if (file) {
-                document.getElementById('preview-container').style.display = 'block';
-                document.getElementById('photo-preview').src = URL.createObjectURL(file);
+
+// 4. CHARGEMENT DU PROFIL (CORRIGÉ AVEC CATCH)
+async function chargerMesSignalements() {
+    const container = document.getElementById('liste-mes-signalements');
+    const token = localStorage.getItem('token');
+    
+    if (!container) return; // Sécurité si on n'est pas sur la page profil
+
+    try {
+        const response = await fetch('/api/my-reports', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
             }
-        };
-    </script>
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            const reports = result.data || result; 
+            container.innerHTML = "";
+            
+            if (reports.length === 0) {
+                container.innerHTML = "<p style='text-align:center;'>Aucun signalement trouvé.</p>";
+                return;
+            }
+
+            reports.forEach(report => {
+                container.innerHTML += `
+                    <div style="background:white; padding:15px; border-radius:20px; margin-bottom:15px; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+                        <div style="display:flex; justify-content:space-between;">
+                           <strong>📍 ${report.location_name || 'Dakar'}</strong>
+                           <small>${report.status}</small>
+                        </div>
+                        <p style="font-size:13px; color:#7f8c8d;">${report.description}</p>
+                        ${report.image ? `<img src="/storage/${report.image}" style="width:100%; border-radius:12px; margin-top:10px;">` : ''}
+                    </div>`;
+            });
+        }
+    } catch (e) {
+        console.error("Erreur lors du chargement du profil:", e);
+    }
+}
+
+// Lancement au chargement
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('liste-mes-signalements')) {
+        chargerMesSignalements();
+    }
+});
+</script>
+
+
 </body>
 </html>

@@ -9,6 +9,25 @@
 
 
 <body>
+<!-- Bandeau d'alerte Camion -->
+<div id="camion-alerte" style="display: none; position: fixed; top: 80px; left: 20px; right: 20px; background: #e67e22; color: white; padding: 15px; border-radius: 20px; z-index: 10000; box-shadow: 0 10px 25px rgba(230,126,34,0.4); animation: slideDown 0.5s ease-out;">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <span style="font-size: 30px;">🚚</span>
+        <div style="flex: 1;">
+            <strong style="display: block; font-size: 16px;">Le camion arrive !</strong>
+            <span style="font-size: 13px;">Il est dans votre quartier. Sortez vos sacs !</span>
+        </div>
+        <button onclick="this.parentElement.parentElement.style.display='none'" style="background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 50%; width: 30px; height: 30px; font-weight: bold;">✕</button>
+    </div>
+</div>
+
+<style>
+@keyframes slideDown {
+    from { transform: translateY(-150%); }
+    to { transform: translateY(0); }
+}
+</style>
+
 @include('partials.header', ['subtitle' => 'Ensemble pour Dakar'])
 
 
