@@ -7,65 +7,42 @@ use Illuminate\Http\Request;
 
 class ZoneController extends Controller
 {
-public function envoyerAlerte(Request $request) {
-    // On valide que la zone existe
-    $request->validate(['zone_id' => 'required|exists:zones,id']);
-
-    // Ici, on simule l'envoi de notification
-    // Dans une version finale, on connecterait Firebase ici
-    return response()->json([
-        'success' => true,
-        'message' => '🔔 Alerte envoyée aux habitants de la zone !'
-    ]);
-}
-
-    /**
-     * Affiche toutes les zones avec leurs horaires (pour le Frontend).
-     */
-public function index()
-{
-    // On récupère toutes les zones (tu peux les créer via un Seeder ou Tinker)
-    $zones = \App\Models\Zone::all();
-    return response()->json($zones);
-}
-
-    /**
-     * Enregistre une nouvelle zone dans la base de données.
-     */
-    public function store(Request $request)
+    // ✅ Utilisé par le Citoyen (MapScreen) pour voir si un camion arrive
+    public function checkAlerte()
     {
-        // 1. Validation des données
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-        ]);
+        $zoneActive = Zone::where('alerte_active', true)->first();
 
-        // 2. Création dans la base de données
-        $zone = Zone::create($validated);
-
-        return response()->json([
-            'message' => 'Zone créée avec succès !',
-            'data' => $zone
-        ], 201);
-    }
-
-    /**
-     * Affiche une seule zone précise.
-     */
-    public function show(string $id)
-    {
-        $zone = Zone::with('schedules')->find($id);
-        
-        if (!$zone) {
-            return response()->json(['message' => 'Zone non trouvée'], 404);
+        if ($zoneActive) {
+            return response()->json([
+                'actif' => true,
+                'zone' => $zoneActive->name,
+                'current_lat' => $zoneActive->current_lat,
+                'current_lng' => $zoneActive->current_lng,
+            ]);
         }
 
-        return response()->json($zone);
+        return response()->json(['actif' => false]);
     }
 
-    public function create() {}
-    public function edit(string $id) {}
-    public function update(Request $request, string $id) {}
-    public function destroy(string $id) {}
-}
+    // ✅ Utilisé par le Chauffeur pour activer/désactiver l'alerte
+    public function toggleAlerte(Request $request)
+    {
+        $name = trim($request->zone_name);
+        $actif = filter_var($request->actif, FILTER_VALIDATE_BOOLEAN);
 
+        $updated = Zone::where('name', $name)->update([
+            'alerte_active' => $actif,
+            'current_lat' => $request->lat,
+            'current_lng' => $request->lng,
+        ]);
+
+        return response()->json(['success' => true, 'is_active' => $actif]);
+    }
+
+    public function index()
+    {
+        return response()->json(Zone::all());
+    }
+
+    // ... garde tes autres méthodes (store, show) si tu en as besoin
+}

@@ -9,7 +9,13 @@ class Zone extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'description'];
+    protected $fillable = [
+        'name', 
+        'description', 
+        'alerte_active', 
+        'current_lat', 
+        'current_lng'
+    ];
 
     public function schedules()
     {
