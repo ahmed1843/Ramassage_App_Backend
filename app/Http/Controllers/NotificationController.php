@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\User;
@@ -10,99 +11,164 @@ use App\Models\Zone;
 
 class NotificationController extends Controller
 {
-    /**
-     * Mettre à jour l'alerte et la position GPS (Appelée par le Driver)
-     * Route: POST /alerte-chauffeur
-     */
-    public function updateAlerte(Request $request)
-    {
-        try {
-            $street = $request->zone_name;
-            $isActif = $request->actif; // true ou false
-            
-            // On récupère la zone ou on la crée si elle n'existe pas
-            $zone = Zone::where('name', $street)->first();
-
-            if ($zone) {
-                $zone->update([
-                    'alerte_active' => $isActif,
-                    // On enregistre les coordonnées si elles sont envoyées
-                    'current_lat' => $request->current_lat ?? $zone->current_lat,
-                    'current_lng' => $request->current_lng ?? $zone->current_lng,
-                ]);
-
-                // Si c'est l'activation initiale (arrivée du chauffeur), on notifie les gens
-                // On vérifie si c'est un changement d'état pour ne pas spammer à chaque mouvement GPS
-                if ($request->has('actif') && !$request->has('current_lat')) {
-                    $action = $isActif ? 'arrivee' : 'depart';
-                    $this->notifyStreetInternal($street, $action);
-                }
-
-                return response()->json(['success' => true]);
-            }
-
-            return response()->json(['success' => false, 'message' => 'Zone introuvable'], 404);
-
-        } catch (\Exception $e) {
-            Log::error('Erreur alerte-chauffeur: ' . $e->getMessage());
-            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
-        }
-    }
-
-    /**
-     * Vérifier s'il y a une alerte en cours (Appelée par le Citoyen / Map)
-     * Route: GET /check-alerte
-     */
-    public function checkAlerte()
-    {
-        // On cherche la première zone active (ou tu peux filtrer par la rue de l'utilisateur)
-        $activeZone = Zone::where('alerte_active', true)->first();
-
-        if ($activeZone) {
-            return response()->json([
-                'actif' => true,
-                'zone' => $activeZone->name,
-                'current_lat' => $activeZone->current_lat,
-                'current_lng' => $activeZone->current_lng,
-            ]);
-        }
-
-        return response()->json(['actif' => false]);
-    }
-
-    /**
-     * Logique de notification réutilisable
-     */
-    private function notifyStreetInternal($street, $action)
-    {
-        $users = User::where('street', $street)->whereNotNull('push_token')->get();
-
-        foreach ($users as $user) {
-            $this->sendExpoNotification($user->push_token, $street, $action);
-        }
-    }
-
-    // --- Garde tes autres méthodes (savePushToken, sendExpoNotification, etc.) sans changement ---
-
+    // ─────────────────────────────────────────────────────────────
+    // 1. Citoyen enregistre son token Expo Push au login/démarrage
+    // POST /api/save-push-token
+    // ─────────────────────────────────────────────────────────────
     public function savePushToken(Request $request)
     {
-        $user = auth()->user();
-        $user->push_token = $request->token;
+        $request->validate([
+            'token' => 'required|string|starts_with:ExponentPushToken',
+        ]);
+
+        $user = Auth::user();
+        $user->expo_push_token = $request->token;
         $user->save();
+
         return response()->json(['success' => true]);
     }
 
-    private function sendExpoNotification($pushToken, $street, $action)
+    // ─────────────────────────────────────────────────────────────
+    // 2. Chauffeur met à jour sa position GPS + zone active
+    // POST /api/driver/update-position
+    // ─────────────────────────────────────────────────────────────
+    public function updateDriverPosition(Request $request)
     {
-        $message = [
-            'to' => $pushToken,
+        $request->validate([
+            'zone_id'       => 'required|exists:zones,id',
+            'latitude'      => 'required|numeric',
+            'longitude'     => 'required|numeric',
+            'alerte_active' => 'boolean',
+        ]);
+
+        $zone = Zone::findOrFail($request->zone_id);
+        $zone->current_lat      = $request->latitude;
+        $zone->current_lng      = $request->longitude;
+        $zone->alerte_active    = $request->alerte_active ?? true;
+        $zone->truck_updated_at = now();
+        $zone->save();
+
+        if ($zone->alerte_active) {
+            $this->notifyZoneCitizens($zone);
+        }
+
+        return response()->json([
+            'success' => true,
+            'zone'    => $zone->name,
+        ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 3. Chauffeur active/désactive manuellement l'alerte
+    // POST /api/driver/toggle-alerte
+    // ─────────────────────────────────────────────────────────────
+    public function toggleAlerte(Request $request)
+    {
+        $request->validate([
+            'zone_id' => 'required|exists:zones,id',
+            'actif'   => 'required|boolean',
+        ]);
+
+        $zone = Zone::findOrFail($request->zone_id);
+        $zone->alerte_active = $request->actif;
+        $zone->save();
+
+        if ($request->actif) {
+            $this->notifyZoneCitizens($zone);
+        }
+
+        return response()->json([
+            'success'       => true,
+            'alerte_active' => $zone->alerte_active,
+            'zone'          => $zone->name,
+        ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 4. Retourne les rues disponibles
+    // GET /api/streets
+    // ─────────────────────────────────────────────────────────────
+    public function getStreets()
+    {
+        $zones = Zone::pluck('name')->toArray();
+        if (empty($zones)) {
+            return response()->json(['Plateau', 'Almadies', 'Médina']);
+        }
+        return response()->json($zones);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 5. Notifier une rue spécifique
+    // POST /api/notify-street
+    // ─────────────────────────────────────────────────────────────
+    public function notifyStreet(Request $request)
+    {
+        $request->validate([
+            'street' => 'required|string',
+        ]);
+
+        $zone = Zone::whereRaw('LOWER(name) = LOWER(?)', [$request->street])->first();
+        if ($zone) {
+            $this->notifyZoneCitizens($zone);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 6. Assigner une rue à un citoyen
+    // POST /api/assign-street
+    // ─────────────────────────────────────────────────────────────
+    public function assignStreet(Request $request)
+    {
+        $user = Auth::user();
+        $user->street = $request->street;
+        $user->save();
+
+        return response()->json(['success' => true]);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // PRIVÉ — Envoie les notifications push aux citoyens de la zone
+    // ─────────────────────────────────────────────────────────────
+    private function notifyZoneCitizens(Zone $zone)
+    {
+        // ✅ 'citizen' (pas 'citoyen') + filtrer par street + exclure drivers
+        $users = User::where('street', $zone->name)
+                    ->whereNotNull('expo_push_token')
+                    ->where('role', 'citizen') // ✅ corrigé : citizen pas citoyen
+                    ->get();
+
+        if ($users->isEmpty()) {
+            Log::info("Aucun citoyen avec token dans la zone: {$zone->name}");
+            return;
+        }
+
+        $messages = $users->map(fn($user) => [
+            'to'    => $user->expo_push_token,
             'sound' => 'default',
-            'title' => $action === 'arrivee' ? '🚛 Collecte en cours' : '✅ Collecte terminée',
-            'body' => $action === 'arrivee' 
-                ? "Le camion est dans {$street}. Sortez vos poubelles !"
-                : "La collecte est terminée dans {$street}.",
-            'data' => ['street' => $street, 'action' => $action]
-        ];
-        Http::post('https://exp.host/--/api/v2/push/send', $message);
+            'title' => '🚛 Camion poubelle approche !',
+            'body'  => "Le camion arrive dans votre quartier ({$zone->name}). Sortez vos poubelles !",
+            'data'  => [
+                'zone' => $zone->name,
+                'lat'  => $zone->current_lat,
+                'lng'  => $zone->current_lng,
+                'type' => 'truck_alert',
+            ],
+            'priority'             => 'high',
+            'channelId'            => 'truck-alerts',
+            '_displayInForeground' => true,
+        ])->values()->all();
+
+        try {
+            $response = Http::withHeaders([
+                'Accept'       => 'application/json',
+                'Content-Type' => 'application/json',
+            ])->post('https://exp.host/--/api/v2/push/send', $messages);
+
+            Log::info("Push envoyé à {$users->count()} citoyens zone {$zone->name}");
+        } catch (\Exception $e) {
+            Log::error("Erreur envoi push: " . $e->getMessage());
+        }
     }
 }

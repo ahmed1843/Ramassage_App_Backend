@@ -62,17 +62,29 @@ Route::post('/alerte-chauffeur', function (Request $request) {
     }
 });
 
-// 2. Citoyen – vérifier si un camion est actif
-Route::get('/check-alerte', function () {
+Route::middleware('auth:sanctum')->get('/check-alerte', function (Request $request) {
     try {
-        $zoneActive = Zone::where('alerte_active', true)->first();
+        $user = $request->user();
 
-        if ($zoneActive) {
+        // ✅ Driver ne doit pas recevoir les alertes citoyens
+        if ($user && $user->role === 'driver') {
+            return response()->json(['actif' => false]);
+        }
+
+        if ($user && $user->street) {
+            $zone = Zone::whereRaw('LOWER(name) = LOWER(?)', [$user->street])
+                        ->where('alerte_active', true)
+                        ->first();
+        } else {
+            $zone = Zone::where('alerte_active', true)->first();
+        }
+
+        if ($zone) {
             return response()->json([
-                'actif' => true,
-                'zone' => $zoneActive->name,
-                'current_lat' => (float) $zoneActive->current_lat,
-                'current_lng' => (float) $zoneActive->current_lng,
+                'actif'       => true,
+                'zone'        => $zone->name,
+                'current_lat' => (float) $zone->current_lat,
+                'current_lng' => (float) $zone->current_lng,
             ]);
         }
 
@@ -81,7 +93,6 @@ Route::get('/check-alerte', function () {
         return response()->json(['error' => $e->getMessage()], 500);
     }
 });
-
 /*
 |--------------------------------------------------------------------------
 | RÉINITIALISATION DU MOT DE PASSE (corrigé)

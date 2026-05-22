@@ -9,13 +9,13 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
-    {
-        Schema::table('users', function (Blueprint $table) {
-            // ✅ On ajoute la colonne pour stocker l'identifiant unique du téléphone
-            $table->string('expo_token')->nullable();
-        });
-    }
+// php artisan make:migration add_expo_push_token_to_users_table
+public function up()
+{
+    Schema::table('users', function (Blueprint $table) {
+        $table->string('expo_push_token')->nullable();
+    });
+}
 
     /**
      * Reverse the migrations.
