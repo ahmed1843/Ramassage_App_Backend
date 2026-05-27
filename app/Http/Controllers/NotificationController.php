@@ -83,6 +83,20 @@ class NotificationController extends Controller
             'zone'          => $zone->name,
         ]);
     }
+// GET /api/notifications
+public function index()
+{
+    return response()->json(
+        Auth::user()->notifications()->orderBy('created_at', 'desc')->get()
+    );
+}
+
+public function markAsRead($id)
+{
+    $n = Auth::user()->notifications()->findOrFail($id);
+    $n->update(['is_read' => true]);
+    return response()->json(['success' => true]);
+}
 
     // ─────────────────────────────────────────────────────────────
     // 4. Retourne les rues disponibles
