@@ -16,18 +16,21 @@ class ReportController extends Controller
         \Log::info('Données reçues:', $request->all());
         \Log::info('Fichier reçu:', $request->hasFile('photo') ? ['oui' => true, 'name' => $request->file('photo')->getClientOriginalName()] : ['non' => false]);
         
-        $validated = $request->validate([
-            'title' => 'required|string|min:3|max:255',
-            'description' => 'required|string|min:5|max:1000',
-            'location' => 'required|string|max:255',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
-        ]);
+     // Remplace ce bloc validate
+$validated = $request->validate([
+    'title' => 'required|string|min:3|max:255',
+    'description' => 'required|string|min:5|max:1000',
+    'location' => 'required|string|max:255',
+    'category' => 'nullable|string|max:100', // ← ajoute cette ligne
+    'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+]);
 
         $report = new Report();
         $report->title = $validated['title'];
         $report->description = $validated['description'];
         $report->location = $validated['location'];
         $report->status = 'pending';
+        $report->category = $request->input('category');
         
         if ($request->user()) {
             $report->user_id = $request->user()->id;
@@ -38,7 +41,13 @@ class ReportController extends Controller
     $report->photo_path = $photoPath;
 }
         
-        $report->save();
+     $report->save();
+
+// ── Points éco ────────────────────────────────────────
+if ($request->user()) {
+    $points = $request->hasFile('image') ? 70 : 50; // +20 bonus si photo
+    $request->user()->increment('points', $points);
+}
         
         return response()->json([
             'success' => true,

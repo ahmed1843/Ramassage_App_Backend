@@ -12,7 +12,8 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
-        'name', 'email', 'password', 'address', 'street', 'push_token', 'role', 'telephone'
+        'name', 'email', 'password', 'address', 'street',
+        'push_token', 'role', 'telephone', 'points',
     ];
 
     protected $hidden = [
@@ -20,14 +21,24 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    protected $appends = ['reports_count'];
+
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'password'          => 'hashed',
+            'points'            => 'integer',
         ];
     }
 
+    // ── Attribut calculé — inclus automatiquement dans le JSON ────────────────
+    public function getReportsCountAttribute(): int
+    {
+        return $this->reports()->count();
+    }
+
+    // ── Relations ─────────────────────────────────────────────────────────────
     public function reports()
     {
         return $this->hasMany(Report::class);

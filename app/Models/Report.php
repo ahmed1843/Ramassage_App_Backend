@@ -9,14 +9,15 @@ class Report extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'title',
-        'description',
-        'location',
-        'photo_path',
-        'status',
-        'user_id',
-    ];
+  protected $fillable = [
+    'title',
+    'description',
+    'location',
+    'category',      // ← ajout
+    'photo_path',
+    'status',
+    'user_id',
+];
 
     protected $casts = [
         'created_at' => 'datetime',
