@@ -63,13 +63,11 @@ if ($request->user()) {
             'errors' => $e->errors()
         ], 422);
         
-    } catch (\Exception $e) {
-        // Retourne l'erreur complète
+ } catch (\Exception $e) {
+        Log::error('Erreur signalement : ' . $e->getMessage());
         return response()->json([
             'success' => false,
-            'message' => $e->getMessage(),
-            'line' => $e->getLine(),
-            'file' => $e->getFile()
+            'message' => 'Impossible d\'envoyer le signalement'
         ], 500);
     }
 }

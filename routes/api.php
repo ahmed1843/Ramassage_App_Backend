@@ -16,9 +16,8 @@ use App\Models\SupportMessage;
 // ── Routes publiques ──────────────────────────────────────────────────────────
 Route::get('/test-json',   fn() => response()->json(['status' => 'ok']));
 Route::get('/test-mobile', fn() => response()->json(['message' => 'EcoWaste Online']));
-
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login',    [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
+Route::post('/login',    [AuthController::class, 'login'])->middleware('throttle:10,1');
 
 Route::get('/zones',                    [ZoneController::class,    'index']);
 Route::get('/schedules',                [ScheduleController::class, 'index']);
@@ -62,39 +61,36 @@ Route::post('/reset-password', function (Request $request) {
     return response()->json(['success' => true, 'message' => 'Mot de passe réinitialisé avec succès']);
 });
 
-// ── Alerte chauffeur (appelée depuis l'app driver) ────────────────────────────
-Route::post('/alerte-chauffeur', function (Request $request) {
+// ── Alerte chauffeur (appelée depuis l'app driver) ──────────────────────────
+Route::middleware('auth:sanctum')->post('/alerte-chauffeur', function (Request $request) {
+    if ($request->user()->role !== 'driver') {
+        abort(403, 'Réservé aux chauffeurs');
+    }
     try {
         $zoneName = trim($request->zone_name);
         $actif    = filter_var($request->actif, FILTER_VALIDATE_BOOLEAN);
         $lat      = $request->lat ?? null;
         $lng      = $request->lng ?? null;
-
         $zone = Zone::whereRaw('LOWER(name) = LOWER(?)', [$zoneName])->first();
         if (!$zone) return response()->json(['error' => 'Zone non trouvée'], 404);
-
         if ($actif) {
             Zone::where('id', '!=', $zone->id)
                 ->update(['alerte_active' => false, 'current_lat' => null, 'current_lng' => null]);
         }
-
         $zone->alerte_active = $actif;
-
         if ($actif && $lat && $lng && $lat != 0 && $lng != 0) {
             $zone->current_lat = (float) $lat;
             $zone->current_lng = (float) $lng;
         }
-
         if (!$actif) {
             $zone->current_lat = null;
             $zone->current_lng = null;
         }
-
         $zone->save();
         return response()->json(['success' => true, 'is_active' => $actif]);
-
     } catch (\Exception $e) {
-        return response()->json(['error' => $e->getMessage()], 500);
+        \Log::error('Erreur alerte chauffeur : ' . $e->getMessage());
+        return response()->json(['success' => false, 'message' => 'Impossible de mettre à jour l\'alerte'], 500);
     }
 });
 
@@ -135,6 +131,7 @@ Route::get('/check-alerte', function (Request $request) {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user',           fn(Request $r) => $r->user());
     Route::put('/user/update',    [AuthController::class, 'updateProfile']);
+Route::delete('/user/delete', [AuthController::class, 'deleteAccount']); // 👈 Nouvelle route de suppression
     Route::post('/logout',        [AuthController::class, 'logout']);
 
     Route::get('/reports',        [ReportController::class, 'index']);

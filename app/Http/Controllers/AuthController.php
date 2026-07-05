@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -17,24 +18,25 @@ class AuthController extends Controller
                 'name'      => $request->name ?? 'Utilisateur Sans Nom',
                 'email'     => $request->email,
                 'password'  => Hash::make($request->password),
-                'role'      => $request->role ?? 'citizen',  // citizen ou driver
-                'street'    => $request->street ?? null,     // ← AJOUTÉ : Rue pour les citoyens
-                'telephone' => $request->telephone ?? '00000000',
-                'push_token' => null,                         // ← AJOUTÉ : Token push
+                // ✅ FIX SÉCURITÉ : on n'accepte que 'citizen' ou 'driver' à l'inscription.
+                'role'      => in_array($request->role, ['citizen', 'driver']) ? $request->role : 'citizen',
+                'street'    => $request->street ?? null,
+                'telephone' => $request->telephone ?? null,
+                'push_token' => null,
             ]);
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Utilisateur créé !',
                 'user' => $user,
-                'token' => $user->createToken('auth_token')->plainTextToken // ← AJOUTÉ pour l'auth
+                'token' => $user->createToken('auth_token')->plainTextToken
             ], 201);
 
         } catch (\Exception $e) {
             Log::error("Erreur Inscription : " . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Impossible de créer le compte'
             ], 500);
         }
     }
@@ -42,10 +44,8 @@ class AuthController extends Controller
     // --- CONNEXION ---
     public function login(Request $request) {
         try {
-            // 1. On cherche l'utilisateur par son email
             $user = User::where('email', $request->email)->first();
 
-            // 2. On vérifie si l'utilisateur existe et si le mot de passe est correct
             if (!$user || !Hash::check($request->password, $user->password)) {
                 return response()->json([
                     'status' => 'error',
@@ -53,7 +53,6 @@ class AuthController extends Controller
                 ], 401);
             }
 
-            // 3. Si c'est bon, on renvoie l'utilisateur et son token
             return response()->json([
                 'status' => 'success',
                 'message' => 'Connexion réussie',
@@ -65,8 +64,7 @@ class AuthController extends Controller
             Log::error("Erreur Login : " . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Erreur lors de la connexion',
-                'debug' => $e->getMessage()
+                'message' => 'Erreur lors de la connexion'
             ], 500);
         }
     }
@@ -82,7 +80,7 @@ class AuthController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Erreur lors de la déconnexion'
             ], 500);
         }
     }
@@ -96,7 +94,7 @@ class AuthController extends Controller
     public function updateProfile(Request $request) {
         try {
             $user = $request->user();
-            
+
             if ($request->has('name')) {
                 $user->name = $request->name;
             }
@@ -106,9 +104,10 @@ class AuthController extends Controller
             if ($request->has('street')) {
                 $user->street = $request->street;
             }
-            
+            // ✅ 'role' volontairement non modifiable via cette route.
+
             $user->save();
-            
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Profil mis à jour',
@@ -117,7 +116,43 @@ class AuthController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Impossible de mettre à jour le profil'
+            ], 500);
+        }
+    }
+
+    // --- SUPPRIMER LE COMPTE ---
+    // ✅ NOUVELLE MÉTHODE : la route DELETE /user/delete existait déjà dans routes/api.php
+    // mais pointait vers une méthode inexistante, ce qui aurait provoqué une erreur 500
+    // si le bouton "Supprimer mon compte" avait été utilisé.
+    public function deleteAccount(Request $request) {
+        try {
+            $user = $request->user();
+
+            DB::transaction(function () use ($user) {
+                // Révoque tous les tokens d'authentification actifs de cet utilisateur
+                $user->tokens()->delete();
+
+                // Anonymise les signalements plutôt que de les supprimer :
+                // l'historique reste utile pour les statistiques globales de la zone,
+                // sans conserver de lien identifiable vers le compte supprimé.
+                if (class_exists(\App\Models\Report::class)) {
+                    \App\Models\Report::where('user_id', $user->id)->update(['user_id' => null]);
+                }
+
+                $user->delete();
+            });
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Compte supprimé avec succès'
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error("Erreur suppression compte : " . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Impossible de supprimer le compte actuellement'
             ], 500);
         }
     }
