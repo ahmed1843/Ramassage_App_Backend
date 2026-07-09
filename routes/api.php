@@ -73,6 +73,10 @@ Route::middleware('auth:sanctum')->post('/alerte-chauffeur', function (Request $
         $lng      = $request->lng ?? null;
         $zone = Zone::whereRaw('LOWER(name) = LOWER(?)', [$zoneName])->first();
         if (!$zone) return response()->json(['error' => 'Zone non trouvée'], 404);
+
+        // ✅ On capture l'état AVANT modification pour détecter la transition
+        $wasActive = $zone->alerte_active;
+
         if ($actif) {
             Zone::where('id', '!=', $zone->id)
                 ->update(['alerte_active' => false, 'current_lat' => null, 'current_lng' => null]);
@@ -87,6 +91,18 @@ Route::middleware('auth:sanctum')->post('/alerte-chauffeur', function (Request $
             $zone->current_lng = null;
         }
         $zone->save();
+
+        // ✅ Ne notifie QUE lors de la transition inactif → actif (première activation)
+        if ($actif && !$wasActive) {
+            try {
+                app(\App\Http\Controllers\NotificationController::class)
+                    ->notifyStreet(new Request(['street' => $zone->name]));
+                \Log::info("Push notification déclenchée (1ère activation) pour la zone: {$zone->name}");
+            } catch (\Exception $e) {
+                \Log::error('Erreur envoi push depuis alerte-chauffeur : ' . $e->getMessage());
+            }
+        }
+
         return response()->json(['success' => true, 'is_active' => $actif]);
     } catch (\Exception $e) {
         \Log::error('Erreur alerte chauffeur : ' . $e->getMessage());

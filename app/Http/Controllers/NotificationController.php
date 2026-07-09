@@ -181,6 +181,7 @@ public function markAsRead($id)
             ])->post('https://exp.host/--/api/v2/push/send', $messages);
 
             Log::info("Push envoyé à {$users->count()} citoyens zone {$zone->name}");
+Log::info("Réponse Expo: " . $response->body());
         } catch (\Exception $e) {
             Log::error("Erreur envoi push: " . $e->getMessage());
         }
